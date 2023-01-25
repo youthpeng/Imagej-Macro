@@ -1,0 +1,82 @@
+// calculate centroid distance between two channel's overlapped objects. 
+//the raw image need to be segmented first and save the objects as roi file (cha1.zip, cha2.zip).
+//written by fanshaopeng (Ph.D), contact: imagejplusplus@163.com
+
+Dialog.create("image dimension");
+Dialog.addNumber("image width", 0)
+Dialog.addNumber("image height", 0)
+Dialog.show();
+width=Dialog.getNumber();
+height=Dialog.getNumber();
+
+setBatchMode(true);
+
+newImage("temp", "8-bit black", width, height, 1);
+run("ROI Manager...");
+roiManager("Open", "D:/test/colo/cha1.zip");
+n_cha1=roiManager("count")
+roiManager("Open", "D:/test/colo/cha2.zip");
+n_cha2=roiManager("count")-n_cha1;
+
+result=newArray();
+count=-1;
+
+for (i=0; i<n_cha1; i++) {
+	for (j=n_cha1; j<n_cha1+n_cha2; j++) {
+		
+		if (colo(i, j)) {
+			count += 1;	
+		
+			result[count]=distance(i, j);			
+		}
+	}
+}
+
+selectWindow("temp");
+save("D:/test/colo/link.tif");
+run("Clear Results");
+for (i=0;i<lengthOf(result);i++) {
+	setResult("distance", i, result[i]);
+}
+
+function colo(i, j) {
+	//judge coverlap by calculate the area difference between independent objects and combined objects
+	//return true if overlap
+	roiManager("Select", newArray(i, j));
+	roiManager("Combine");
+	roiManager("Add");
+	roiManager("Select", newArray(i, j, roiManager("count")-1));
+	run("Set Measurements...", "area display redirect=None decimal=0");
+	roiManager("Measure");
+	area1=getResult("Area", 0);  area2=getResult("Area", 1);  area3=getResult("Area", 2);
+	run("Clear Results");
+	
+	decision=0;
+	if (area3 < area1 + area2) {
+		decision =1;	
+	}
+	
+	return decision;
+}
+
+function distance(i, j) {
+	//calculate distance between two centroids
+	run("Set Measurements...", "centroid display redirect=None decimal=0");
+	roiManager("Select", i);
+	run("Measure");
+	roiManager("Select", j);
+	run("Measure", j);
+	
+	ix=getResult("X", 0); iy=getResult("Y", 0);
+	jx=getResult("X", 1); jy=getResult("Y", 1);
+	
+	makeLine(ix, iy, jx, jy);
+	Roi.setStrokeColor("white");
+	Roi.setStrokeWidth(2);
+	run("Fill", "slice");
+	run("Add Selection...");
+	
+	dx=abs(ix-jx); dy=abs(iy-jy);
+	dis=sqrt(pow(dx, 2) + pow(dy, 2));
+	return dis;
+}
