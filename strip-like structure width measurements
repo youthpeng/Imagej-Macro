@@ -1,0 +1,79 @@
+//analyze epidermal layer thickness
+dir=getDirectory("thickness analysis");
+title=getString("title", "epidermal.tif");
+open(dir+title);
+height=getHeight();width=getWidth();
+rename("raw");
+run("8-bit");
+run("Duplicate...", "title=raw1");
+
+run("Gaussian Blur...", "sigma=3");
+setAutoThreshold("Default");
+run("Analyze Particles...", "size=500-Infinity clear add");
+roiManager("Select", 0);
+run("Clear Outside");
+setOption("BlackBackground", false);
+run("Convert to Mask");
+rename("mask")
+run("Fill Holes");
+run("Duplicate...", "title=mask1");
+run("Skeletonize (2D/3D)");
+run("prune skel", "threshold=100.0");
+selectWindow("mask1-pruned");
+rename("skeleton");
+selectWindow("mask1");
+close();
+
+selectWindow("mask");
+
+roiManager("Select", 0);
+roiManager("Rename", "mask");
+/*selectWindow("skeleton");
+run("Create Selection");
+roiManager("Add");
+roiManager("Select", 1);
+roiManager("Rename", "skeleton");*/
+
+selectWindow("skeleton");
+run("Create Selection");
+getSelectionCoordinates(xpoints, ypoints);
+selectWindow("skeleton");
+n=lengthOf(xpoints);
+
+close();
+run("Set Measurements...", "perimeter redirect=None decimal=0");
+n_skeleton=lengthOf(xpoints)/2;
+print(n_skeleton);
+arr_length=newArray;
+j=0
+
+for (i=0; i<n_skeleton-10; i=i+10){
+	dx=xpoints[i]-xpoints[i+10];
+	dy=ypoints[i]-ypoints[i+10];
+	angle=(atan(dy/dx))*180/PI;
+	makeLine(xpoints[i], ypoints[i]+100, xpoints[i], ypoints[i]-100);
+	run("Rotate...", "  angle="+angle);
+	roiManager("add");
+	selectWindow("mask");
+	//roiManager("Deselect");
+	roiManager("Select", newArray(0, 1));
+	roiManager("AND");
+	roiManager("add");
+	selectWindow("mask");
+	roiManager("Select", 2);
+	
+	run("Measure");
+	
+	roiManager("Select", newArray(1,2));
+	roiManager("Delete");
+	
+	
+	
+}
+n=nResults;
+arr_length=newArray;
+for (i=0; i<n; i++) {
+	peri=getResult("Perim.", i);
+	arr_length[i]=peri;
+}
+Array.print(arr_length);
